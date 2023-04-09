@@ -1,4 +1,6 @@
-import { Component } from 'react';
+import { useState, useEffect } from 'react';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { Container } from './Container/Container.styled';
 import Search from './Searchbar/Searchbar';
 import fetchImages from '../services/API';
@@ -6,86 +8,74 @@ import ImageGallery from './ImageGallery/ImageGallery';
 import ButtonLoadMore from './Button/Button';
 import Modal from './Modal/Modal';
 import Loader from './Loader/Loader';
-export class App extends Component {
-  state = {
-    searchText: '',
-    images: [],
-    error: null,
-    page: 1,
-    isLoading: false,
-    isShowModal: false,
-    modalImage: '',
-    totalImages: 0,
-  };
 
-  async componentDidUpdate(_, prevState) {
-    const { searchText, page } = this.state;
+export function App() {
+  const [searchText, setSearchText] = useState('');
+  const [images, setImages] = useState([]);
+  const [error, setError] = useState(null);
+  const [page, setPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isShowModal, setIsShowModal] = useState(false);
+  const [modalImage, setModalImage] = useState('');
 
-    if (prevState.searchText !== searchText || prevState.page !== page) {
-      this.setState({ isLoading: true });
+  useEffect(() => {
+    if (!searchText || !page) {
+      return;
+    }
+
+    const createGallery = async () => {
+      setIsLoading(true);
+
       try {
         const data = await fetchImages(searchText, page);
 
         if (data.hits.length === 0) {
-          this.setState({ error: 'Something went wrong. Please try again!' });
+          toast.error('Something went wrong. Please try again!');
         }
-        this.setState({
-          totalImages: data.totalHits,
-        });
-        this.setState(prevState => {
-          return {
-            images: [...prevState.images, ...data.hits],
-          };
-        });
+        setImages(images => [...images, ...data.hits]);
       } catch (error) {
-        this.setState({ error: 'Oops something went wrong...' });
+        setError(error);
+        toast.error('Oops something went wrong...');
       } finally {
-        this.setState({ isLoading: false });
+        setIsLoading(false);
       }
-    }
-  }
+    };
+    createGallery();
+  }, [searchText, page]);
 
-  getDataImages = async () => {};
-
-  createSearchText = searchText => {
-    this.setState({ images: [], searchText, page: 1 });
+  const createSearchText = searchText => {
+    setSearchText(searchText);
+    setImages([]);
+    setPage(1);
   };
 
-  imageClick = imageUrl => {
-    this.setState({ modalImage: imageUrl, isShowModal: true });
+  const imageClick = imageUrl => {
+    setModalImage(imageUrl);
+    setIsShowModal(true);
   };
 
-  toggleModal = () => {
-    this.setState(({ isShowModal }) => ({
-      isShowModal: !isShowModal,
-    }));
+  const toggleModal = () => {
+    setIsShowModal(!isShowModal);
   };
 
-  onLoadMore = () => {
-    this.setState(prevState => {
-      // console.log('onLoadMore');
-      return {
-        page: prevState.page + 1,
-      };
-    });
+  const onLoadMore = () => {
+    setPage(prevState => prevState + 1);
   };
 
-  render() {
-    const { images, isShowModal, modalImage, isLoading, error } = this.state;
-    const lengthImages = images.length >= 12;
-    return (
-      <Container>
-        <Search createSearchText={this.createSearchText} />
-        {error}
-        {images.length > 0 && (
-          <ImageGallery items={images} getItemClick={this.imageClick} />
-        )}
-        {isLoading && <Loader />}
-        {!isLoading && lengthImages && (
-          <ButtonLoadMore onLoadMore={() => this.onLoadMore} />
-        )}
-        {isShowModal && <Modal image={modalImage} onClose={this.toggleModal} />}
-      </Container>
-    );
-  }
+  const lengthImages = images.length >= 12;
+  return (
+    <Container>
+      <Search createSearchText={createSearchText} />
+      {error}
+      {images.length > 0 && (
+        <ImageGallery items={images} getItemClick={imageClick} />
+      )}
+      {isLoading && <Loader />}
+      {!isLoading && lengthImages && (
+        <ButtonLoadMore onLoadMore={() => onLoadMore} />
+      )}
+      {isShowModal && <Modal image={modalImage} onClose={toggleModal} />}
+      <ToastContainer />
+    </Container>
+  );
 }
